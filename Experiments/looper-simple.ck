@@ -5,21 +5,28 @@ int recording;
 
 0 => int voice;
 60::second => dur max_record_duration;
-adc => LiSa loop => dac;
+Dyno noise_gate;
+noise_gate.gate();
+Gain input_gain;
+8.0=> input_gain.gain;
+adc => input_gain => LiSa loop => dac;
 max_record_duration => loop.duration;
 
-2.5 => loop.gain;
+// 2.5 => loop.gain;
 loop.feedback(0.0);
+0::ms => loop.recRamp;
 
 dur start_pos;
 time start_time;
 dur real_duration;
+int char;
 <<<"Ready">>>;
 while (true) {
   kb => now;
 
   while (kb.more()) {
-    if (kb.getchar() == 32) {
+    kb.getchar() => char;
+    if (char == 32) {
       if (recording) {
         0 => recording;
         now - start_time => real_duration;
@@ -31,6 +38,8 @@ while (true) {
         1 => recording;
         loop.play(voice, 0);
         voice++;
+        loop.playPos(voice, loop.recPos());
+        // loop.recPos(loop.playPos(voice));
         loop.rate(voice, 1);
         loop.play(voice, 1);
         loop.loop(voice, 1);
@@ -45,6 +54,8 @@ while (true) {
       <<< "recording: ", recording >>>;
       loop.record(recording);
       loop.play(1);
+    } else {
+      <<<"Unhandled key: ", char >>>;
     }
   }
 }
