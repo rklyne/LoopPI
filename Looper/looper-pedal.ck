@@ -215,18 +215,18 @@ while (true) {
 
   while (kb.more()) {
     kb.getchar() => char;
-    if (char == 32) {
+    if (char == 32) { // space
       looper.start_stop(selected_loop);
     }
-    else if (char == 127) {
+    else if (char == 127) { // backspace
         looper.delete_last(selected_loop);
-    } else if (char == 49) {
+    } else if (char == 49) { // "1"
         0 => selected_loop;
-    } else if (char == 50) {
+    } else if (char == 50) { // "2"
         1 => selected_loop;
-    } else if (char == 51) {
+    } else if (char == 51) { // "3"
         2 => selected_loop;
-    } else if (char == 52) {
+    } else if (char == 52) { // "4"
         3 => selected_loop;
     } else {
         <<<"Unhandled key: ", char >>>;
