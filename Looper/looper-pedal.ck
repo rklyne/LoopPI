@@ -31,23 +31,27 @@ class LoopTrack extends CGen {
     left => recorder => right;
     int recording;
     dur start_pos;
-    time start_time;
     dur real_duration;
-    dur playback_duration;
+    dur duration;
+    time start_time;
     recorder.getVoice() => int voice;
     1.0 => recorder.gain;
 
     fun void set_play_duration(dur playback) {
         // TODO: Complete this bit!
+        playback => duration;
+        recorder.loopStart(voice, start_pos);
+        recorder.loopEnd(voice, start_pos + duration);
+        <<< "Play duration: " , duration >>>;
     }
 
     fun void record_off() {
         if (!recording) {return ;}
         0 => recording;
         now - start_time => real_duration;
+        real_duration => duration;
         <<< "Real duration: " , real_duration >>>;
-        recorder.loopEnd(voice, recorder.playPos(voice));
-        recorder.loopStart(voice, start_pos);
+        this.set_play_duration(duration);
         recorder.record(0);
     }
 
@@ -59,7 +63,7 @@ class LoopTrack extends CGen {
         // recorder.recPos(recorder.playPos(voice));
         recorder.rate(voice, 1);
         // Don't play previous buffer contents while recording????
-        max_record_duration => real_duration;
+        max_record_duration => duration;
         now => start_time;
         recorder.playPos(voice) => start_pos;
         <<<"Start time: ", start_time >>>;
@@ -73,17 +77,27 @@ class LoopTrack extends CGen {
     }
 }
 
+fun dur max(dur a, dur b) {
+    if (a < b) {
+        return b;
+    } else {
+        return a;
+    }
+}
+
 class MultitrackLoop extends CGen {
     20 => int max_loops;
     LoopTrack @ loops[max_loops];
     0 => int recording;
     0 => int loop_count;
+    0::ms => dur duration;
 
     fun void record_toggle() {
         if (recording) {
             0 => recording;
             <<<"stopping ", loop_count-1>>>;
             loops[loop_count-1].record_off();
+            this.update_duration(loops[loop_count-1].duration);
         } else {
             1 => recording;
             <<<"starting ", loop_count>>>;
@@ -93,6 +107,15 @@ class MultitrackLoop extends CGen {
             <<<"Track: ", loop_count >>>;
             track.record_on();
         }
+    }
+
+    fun void update_duration(dur last_duration) {
+        // Longest
+        max(last_duration, duration) => duration;
+        for (0 => int i; i < loop_count; i++) {
+            loops[i].set_play_duration(duration);
+        }
+        // Maybe try 'pinned-to-first' duration too?
     }
 
     fun void remove_last() {
