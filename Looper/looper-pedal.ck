@@ -13,25 +13,33 @@ class CGen {
         l @=> _left;
         r @=> _right;
         _left => left;
-        _right => right;
+        right => _right;
     }
 
     fun void disconnect() {
         _left !=> left;
-        _right !=> right;
+        right !=> _right;
     }
 }
 
 class LoopTrack extends CGen {
     LiSa recorder;
-    left => recorder => right;
+    0::ms => recorder.recRamp;
+    recorder.feedback(0.0);
     60::second => dur max_duration;
-    dur recording_duration;
+    max_duration => recorder.duration;
+    left => recorder => right;
     int recording;
     dur start_pos;
     time start_time;
     dur real_duration;
-    0 => int voice;
+    dur playback_duration;
+    recorder.getVoice() => int voice;
+    1.0 => recorder.gain;
+
+    fun void set_play_duration(dur playback) {
+        // TODO: Complete this bit!
+    }
 
     fun void record_off() {
         if (!recording) {return ;}
@@ -45,12 +53,12 @@ class LoopTrack extends CGen {
 
     fun void record_on() {
         if (recording) { return ; }
+        recorder.play(voice, 1);
+        recorder.loop(voice, 1);
         recorder.playPos(voice, recorder.recPos());
         // recorder.recPos(recorder.playPos(voice));
         recorder.rate(voice, 1);
         // Don't play previous buffer contents while recording????
-        recorder.play(voice, 1);
-        recorder.loop(voice, 1);
         max_record_duration => real_duration;
         now => start_time;
         recorder.playPos(voice) => start_pos;
@@ -68,20 +76,22 @@ class LoopTrack extends CGen {
 class MultitrackLoop extends CGen {
     20 => int max_loops;
     LoopTrack @ loops[max_loops];
-    int recording;
+    0 => int recording;
     0 => int loop_count;
 
     fun void record_toggle() {
         if (recording) {
             0 => recording;
+            <<<"stopping ", loop_count-1>>>;
             loops[loop_count-1].record_off();
         } else {
             1 => recording;
+            <<<"starting ", loop_count>>>;
             LoopTrack track @=> loops[loop_count];
-            loop_count++;
-            <<<"Loop: ", loop_count >>>;
-            track.record_on();
             track.connect(left, right);
+            loop_count++;
+            <<<"Track: ", loop_count >>>;
+            track.record_on();
         }
     }
 
@@ -102,8 +112,12 @@ class MultitrackLoop extends CGen {
 }
 
 public class LooperPedal extends CGen {
+    left => right;
     4 => int num_loops;
     MultitrackLoop loops[num_loops];
+    for (0 => int i; i < num_loops; i++) {
+        loops[i].connect(left, right);
+    }
 
     fun void start_stop(int loop) {
         loops[loop].record_toggle();
@@ -123,7 +137,6 @@ public class LooperPedal extends CGen {
 int char;
 LooperPedal looper;
 looper.connect(adc, dac);
-adc => dac;
 0 => int selected_loop;
 // adc => Gain playthrough_volume => dac;
 // 01.0 => playthrough_volume.gain;
