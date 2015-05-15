@@ -5,7 +5,7 @@ service triggerhappy stop
 service dbus stop
 sudo mount -o remount,size=256M /dev/shm
 
-BUFSIZE=2048
+BUFSIZE=512
 jackd  --realtime -p8 -t100000 -d alsa -dhw:1 -p${BUFSIZE} -n2 -H -M -z none -s&
 # jack_bufsize $BUFSIZE
 sleep 1.5
