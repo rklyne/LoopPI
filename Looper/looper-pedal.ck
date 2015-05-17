@@ -112,8 +112,13 @@ class MultitrackLoop extends CGen {
     fun void update_duration(dur last_duration) {
         // Longest
         max(last_duration, duration) => duration;
+        set_duration(duration);
+    }
+
+    fun void set_duration(dur new_duration) {
         for (0 => int i; i < loop_count; i++) {
-            loops[i].set_play_duration(duration);
+            (new_duration / loops[i].duration + 0.5) $ int => int repetitions;
+            loops[i].set_play_duration(new_duration/repetitions);
         }
         // Maybe try 'pinned-to-first' duration too?
     }
@@ -123,6 +128,9 @@ class MultitrackLoop extends CGen {
         loop_count--;
         loops[loop_count].stop();
         loops[loop_count].disconnect();
+        if (loop_count == 0) {
+            0::ms => duration;
+        }
     }
 
     fun void remove_all() {
