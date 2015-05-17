@@ -152,10 +152,23 @@ public class LooperPedal extends CGen {
 
     fun void start_stop(int loop) {
         loops[loop].record_toggle();
+        update_duration();
     }
 
     fun void delete_last(int loop) {
         loops[loop].remove_last();
+    }
+
+    fun void update_duration() {
+        // Longest
+        0::ms => dur duration;
+        for (0 => int i; i < num_loops; i++) {
+            max(loops[i].duration, duration) => duration;
+        }
+        <<<"Master duration", duration>>>;
+        for (0 => int i; i < num_loops; i++) {
+            loops[i].set_duration(duration);
+        }
     }
 
     fun void clear() {
