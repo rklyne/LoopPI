@@ -61,7 +61,7 @@ class LoopTrack extends CGen {
         recorder.loop(voice, 1);
         recorder.playPos(voice, recorder.recPos());
         // recorder.recPos(recorder.playPos(voice));
-        recorder.rate(voice, 1);
+        // recorder.rate(voice, 1);
         // Don't play previous buffer contents while recording????
         max_record_duration => duration;
         now => start_time;
@@ -74,6 +74,7 @@ class LoopTrack extends CGen {
     fun void stop() {
         recorder.play(0);
         recorder.loop(0);
+        recorder.record(0);
     }
 }
 
