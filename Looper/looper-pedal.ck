@@ -205,6 +205,12 @@ while (true) {
         2 => selected_loop;
     } else if (char == 52) { // "4"
         3 => selected_loop;
+    } else if (char == 100) { // "d"
+        looper.disconnect();
+    } else if (char == 114) { // "r"
+        looper.disconnect();
+        1::samp => now;
+        looper.connect(adc, dac);
     } else {
         <<<"Unhandled key: ", char >>>;
     }
