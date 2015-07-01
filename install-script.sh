@@ -5,7 +5,7 @@
 ##   ./install-script.sh
 
 sudo apt-get update
-sudo apt-get install -y zsh vim exuberant-ctags chuck make python-pip cython python-dev liblo-dev jackd python2.6-dev python2.7-dev bison python-dev flex htop libjack-jackd2-dev libsndfile-dev libasound2-dev
+sudo apt-get install -y zsh vim exuberant-ctags chuck make python-pip cython python-dev liblo-dev jackd python2.6-dev python2.7-dev bison python-dev flex htop libjack-jackd2-dev libsndfile-dev libasound2-dev itop ncurses-dev jackd2 apt-show-versions bc libsamplerate-dev libreadline-dev
 
 mkdir ~/build
 (

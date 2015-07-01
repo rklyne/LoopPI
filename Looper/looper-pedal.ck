@@ -93,6 +93,13 @@ class MultitrackLoop extends CGen {
     0 => int loop_count;
     0::ms => dur duration;
 
+    fun void record_off() {
+        if (recording) {
+            loops[loop_count-1].record_off();
+            0 => recording;
+        }
+    }
+
     fun void record_toggle() {
         if (recording) {
             0 => recording;
@@ -125,6 +132,7 @@ class MultitrackLoop extends CGen {
     }
 
     fun void remove_last() {
+        this.record_off();
         if (loop_count == 0) {return ;}
         loop_count--;
         loops[loop_count].stop();
@@ -135,6 +143,7 @@ class MultitrackLoop extends CGen {
     }
 
     fun void remove_all() {
+        this.record_off();
         for (0 => int i; i < loop_count; i++) {
             loops[i].stop();
             loops[i].disconnect();
@@ -186,8 +195,8 @@ looper.connect(adc, dac);
 // adc => Gain playthrough_volume => dac;
 // 01.0 => playthrough_volume.gain;
 <<<"Ready">>>;
-
-while (true) {
+1 => int running;
+while (running) {
   kb => now;
 
   while (kb.more()) {
@@ -207,6 +216,9 @@ while (true) {
         3 => selected_loop;
     } else if (char == 100) { // "d"
         looper.disconnect();
+    } else if (char == 113) { // "q"
+        0 => running;
+        <<<"Quitting">>>;
     } else if (char == 114) { // "r"
         looper.disconnect();
         1::samp => now;

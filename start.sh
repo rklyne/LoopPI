@@ -1,37 +1,48 @@
 #!/bin/bash
 
-# Some system prep
-sudo service ntp stop
-sudo service triggerhappy stop
-sudo service cron stop
-sudo service dphys-swapfile stop
-sudo mount -o remount,size=512M /dev/shm
-for CPU in 0 1 2 3; do
-    echo -n "performance" | sudo tee /sys/devices/system/cpu/cpu${CPU}/cpufreq/scaling_governor ;
-done
-. fix_irq_prio.sh
-
+./prepare_system.sh
 
 # JACKD / CHUCK config vars
-JACKD_PRIO=1
-CHUCK_PRIO=2
-RATE=44100
+JACKD_PRIO=58
+CHUCK_PRIO=56
+CHUCK_CMD=~pi/chuck
+JACK_CMD=jackd
+CHUCK_PROGRAM=Looper/looper-pedal.ck
+# CHUCK_PROGRAM=Experiments/playthrough.ck
+# CHUCK_PROGRAM=Experiments/sin.ck
+# RATE=44100
 RATE=48000
-BUF_SIZE=96
+BUF_SIZE=$((48 * 2))
 BUF_NUM=3
-JACK_OPTS=" -P1 "
-JACK_ALSA_OPTS="-S -z none -D "
+JACK_OPTS=" -R -P${JACKD_PRIO} -p64 -cc "
+JACK_OPTS="${JACK_OPTS} "
+JACK_ALSA_OPTS="-s -S -z none -D "
 # Mono in:
-# JACK_ALSA_OPTS="${JACK_ALSA_OPTS} -i1"
+JACK_ALSA_OPTS="${JACK_ALSA_OPTS} -i1 -o2 "
+# named sound card
+JACK_ALSA_OPTS="${JACK_ALSA_OPTS} -Phw:1 -Chw:0 "
+
+# Overrides for debugging
+# BUF_SIZE=96
+# BUF_NUM=3
+
+# EXTRA_INPUT_LATENCY=$((2 * ${BUF_SIZE}))
+# JACK_ALSA_OPTS="${JACK_ALSA_OPTS} -I${EXTRA_INPUT_LATENCY} "
+
+# Jackd free mode
+# JACK_CMD="echo jackd"
+# CHUCK_CMD=~pi/chuck.alsa
 
 
 # START JACKD
 
-export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
-jackd  --realtime -p8 -t100000 ${JACK_OPTS} -d alsa -dhw:1 -p${BUF_SIZE} -n${BUF_NUM} -H -M ${JACK_ALSA_OPTS} -s --rate ${RATE} &
-# jack_bufsize $BUF_SIZE
+RUN_FAST="chrt --fifo ${JACKD_PRIO}"
+# export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
+JACK_CMD_LINE="$RUN_FAST ${JACK_CMD}  --realtime -t100000 ${JACK_OPTS} -d alsa -p${BUF_SIZE} -n${BUF_NUM} ${JACK_ALSA_OPTS} -s --rate ${RATE}"
+echo $JACK_CMD_LINE
+$JACK_CMD_LINE &
 JACKD_PID=`pidof jackd`
-sudo chrt --fifo -p ${JACKD_PRIO} ${JACKD_PID}
+# sudo chrt --fifo -p ${JACKD_PRIO} ${JACKD_PID}
 
 
 # START CHUCK
@@ -40,13 +51,17 @@ sleep 1
 (
     sleep 1 ;
     CHUCK_PID=`pidof chuck` ;
-sudo renice -20 ${CHUCK_PID} ;
-    echo "niced chuck, pid ", `pidof chuck` ;
-    sudo chrt --fifo -p ${CHUCK_PRIO}  ${CHUCK_PID} ;
+    # sudo renice -20 ${CHUCK_PID} ;
+    # echo "niced chuck, pid ", `pidof chuck` ;
+    # sudo chrt --fifo -p ${CHUCK_PRIO}  ${CHUCK_PID} ;
+    # sudo chrt --fifo -p ${JACKD_PRIO} ${JACKD_PID};
 ) &
 
-CHUCK_OPTS=" --in1 --srate:${RATE}  --bufnum:${BUF_NUM} --adaptive:${BUF_SIZE}"
-~/chuck ${CHUCK_OPTS} Looper/looper-pedal.ck
+jack_bufsize $BUF_SIZE
+
+CHUCK_OPTS=" --in1 --srate:${RATE}  --bufnum:${BUF_NUM} "
+# CHUCK_OPTS="${CHUCK_OPTS} --adaptive:${BUF_SIZE}"
+$RUN_FAST ${CHUCK_CMD} ${CHUCK_OPTS} ${CHUCK_PROGRAM}
 
 killall jackd
 
