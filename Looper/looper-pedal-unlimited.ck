@@ -49,37 +49,32 @@ class Recorder extends CGen {
 class JustLiSa extends Recorder {
     LiSa lisa;
     left => lisa => right;
-    0::ms => lisa.recRamp;
-    5::second => lisa.duration;
-    lisa.getVoice() => int voice;
-    lisa.feedback(0.0);
-    1.0 => lisa.gain;
+    set_buffer(15::second);
     time start_time;
     dur start_pos;
     dur duration;
     dur real_duration;
     0 => int recording; // bool
-    lisa.loop(voice, 1);
+    int voice;
 
     fun void set_loop_start(dur start) {
         start => lisa.loopStart;
     }
 
-    fun void set_duration(dur duration) {
-        lisa.loopStart(voice, start_pos);
-        lisa.loopEnd(voice, start_pos + duration);
+    fun void set_duration(dur new_duration) {
+        new_duration => duration;
+        lisa.loopEnd(voice, start_pos + new_duration);
     }
 
     fun void record_on() {
         if (recording) {return;}
         1 => recording;
-        lisa.playPos(voice, lisa.recPos());
+        lisa.recPos() => start_pos;
+        lisa.loopStart(voice, start_pos);
         // recorder.recPos(recorder.playPos(voice));
         // recorder.rate(voice, 1);
-        // Don't play previous buffer contents while recording????
         max_record_duration => duration;
         now => start_time;
-        lisa.playPos(voice) => start_pos;
         <<<"Start time: ", start_time >>>;
         lisa.record(1);
     }
@@ -89,6 +84,7 @@ class JustLiSa extends Recorder {
         lisa.record(0);
         now - start_time => real_duration;
         set_duration(real_duration);
+        lisa.playPos(voice, start_pos);
     }
 
     fun void play_on() {
@@ -107,6 +103,12 @@ class JustLiSa extends Recorder {
 
     fun void set_buffer(dur buffer) {
         buffer => lisa.duration;
+        0::ms => lisa.recRamp;
+        15::second => lisa.duration;
+        lisa.getVoice() => voice;
+        lisa.feedback(0.0);
+        1.0 => lisa.gain;
+        lisa.loop(voice, 1);
     }
 }
 
@@ -123,26 +125,60 @@ class InfiLiSa extends Recorder {
     0 => int recording; // bool
     
     fun void _change_recorder() {
-        me.yield();
         <<<"I", "CHANGE">>>;
-        me.yield();
         if (current_recorder != null) {
+            <<<"I", "CHANGE", "TRK", "1">>>;
             used_recorders.size() + 1 => used_recorders.size;
+            <<<"I", "CHANGE", "TRK", "2">>>;
             current_recorder @=> used_recorders[used_recorders.size()-1];
+            <<<"I", "CHANGE", "TRK", "3">>>;
             current_recorder.record_off();
-            current_recorder.set_duration(now - last_record_start);
+            <<<"I", "CHANGE", "TRK", "4">>>;
         }
-        me.yield();
+        <<<"I", "CHANGE", "TRK", "5">>>;
         _new_recorder() @=> current_recorder;
+        <<<"I", "CHANGE", "TRK", "6">>>;
         now => last_record_start;
+        <<<"I", "CHANGE", "TRK", "7">>>;
         current_recorder.record_on();
-        me.yield();
+        <<<"I", "CHANGE", "TRK", "8">>>;
     }
 
+    JustLiSa @ _preallocated;
+    fun void preallocator() {
+        me.yield();
+        <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "1">>>;
+        1::samp => now;
+        me.yield();
+        <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "2">>>;
+        if (_preallocated != null) {return ;}
+        me.yield();
+        <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "3">>>;
+        new JustLiSa @=> _preallocated;
+        me.yield();
+        <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "4">>>;
+        _preallocated.set_buffer(1.1::CHUNK_SIZE);
+        me.yield();
+        <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "5">>>;
+        _preallocated.connect(left, right);
+        me.yield();
+        <<<"I", "NEW_REC", "PREALLOC", "GENERATED">>>;
+    }
+    spork ~ preallocator();
+
     fun JustLiSa _new_recorder() {
-        JustLiSa lisa;
-        lisa.set_buffer(1.1::CHUNK_SIZE);
-        lisa.connect(left, right);
+        JustLiSa @ lisa;
+        if (_preallocated != null) {
+            _preallocated @=> lisa;
+            <<<"I", "NEW_REC", "PREALLOC", "RETURN">>>;
+            null @=> _preallocated;
+        } else {
+            <<<"I", "NEW_REC", "PREALLOC", "CREATE">>>;
+            new JustLiSa @=> lisa;
+            lisa.set_buffer(1.1::CHUNK_SIZE);
+            lisa.connect(left, right);
+        }
+        spork ~ preallocator();
         return lisa;
     }
 
@@ -180,7 +216,7 @@ class InfiLiSa extends Recorder {
                 min(remaining, used_recorders[i].real_duration) => wait_time;
                 wait_time => now;
                 remaining - wait_time => remaining;
-                used_recorders[i].play_off();
+                // used_recorders[i].play_off();
             }
             if (remaining > 0::second) {
                 <<<"I", "Multi Play", "Extra", "remaining", remaining>>>;
@@ -197,6 +233,7 @@ class InfiLiSa extends Recorder {
         now => start_time;
         this._change_recorder();
         current_recorder.record_on();
+        current_recorder.play_on();
         spork ~ run_record_monitor(CHUNK_SIZE) @=> record_monitor;
     }
     
@@ -209,7 +246,7 @@ class InfiLiSa extends Recorder {
         _change_recorder();
         <<<"I", "REC Off 4">>>;
         current_recorder.record_off();
-        record_monitor.exit();
+        // record_monitor.exit();
         Machine.remove(record_monitor.id());
         spork ~ run_play_monitor() @=> play_monitor;
     }
