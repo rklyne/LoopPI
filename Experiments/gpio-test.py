@@ -38,5 +38,6 @@ for pin in [
 print "Monitoring", pins, "pins"
 
 import time
-time.sleep(30)
+while True:
+    time.sleep(1)
 
