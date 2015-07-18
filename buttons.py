@@ -11,11 +11,12 @@ class Buttons(object):
         self.now = time.time
         self.sleep = time.sleep
 
-    def add(self, button, pin):
+    def add(self, button, pin, callback=None):
         self.pin_to_button[pin] = button
-        self.monitor_pin(pin)
+        self.monitor_pin(pin, callback=callback)
 
-    def monitor_pin(self, pin, bouncetime=5):
+    def monitor_pin(self, pin, callback=None, bouncetime=5):
+        callback = callback or self.callback
         self.downtimes[pin] = None
         button = self.pin_to_button[pin]
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -35,7 +36,7 @@ class Buttons(object):
             time = self.now() - downtime
             self.downtimes[pin] = None
             self.debug(3, "Up", pin)
-            self.callback(button, time)
+            callback(button, time)
         def btn_event(signal, pin=pin, btn_down=btn_down, btn_up=btn_up):
             rawvalue = GPIO.input(pin)
             self.sleep(0.01)
@@ -60,11 +61,14 @@ class Buttons(object):
         msg = u' '.join(map(unicode, msgs))
         print msg
 
+def special_button_press(button, time):
+    print "*** Pressed", button, "for", time
+
 def button_press(button, time):
     print "Pressed", button, "for", time
 
 buttons = Buttons(button_press, debuglevel=2)
-buttons.add('1', 21)
+buttons.add('1', 21, callback=special_button_press)
 buttons.add('1p', 22)
 buttons.add('2', 18)
 buttons.add('2p', 19)
