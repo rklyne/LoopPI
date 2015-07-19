@@ -49,13 +49,18 @@ class Recorder extends CGen {
 class JustLiSa extends Recorder {
     LiSa lisa;
     left => lisa => right;
-    set_buffer(15::second);
     time start_time;
     dur start_pos;
     dur duration;
     dur real_duration;
     0 => int recording; // bool
     int voice;
+    0 => int buffer_set; // bool
+
+    fun void buffer_default() {
+        if (buffer_set) {return;}
+        set_buffer(15::second);
+    }
 
     fun void set_loop_start(dur start) {
         start => lisa.loopStart;
@@ -68,6 +73,7 @@ class JustLiSa extends Recorder {
 
     fun void record_on() {
         if (recording) {return;}
+        buffer_default();
         1 => recording;
         lisa.recPos() => start_pos;
         lisa.loopStart(voice, start_pos);
@@ -109,6 +115,7 @@ class JustLiSa extends Recorder {
         lisa.feedback(0.0);
         1.0 => lisa.gain;
         lisa.loop(voice, 1);
+        1 => buffer_set;
     }
 }
 
@@ -117,7 +124,7 @@ class InfiLiSa extends Recorder {
     JustLiSa @ current_recorder;
     Shred @ record_monitor;
     Shred @ play_monitor;
-    4::second => dur CHUNK_SIZE;
+    1::second => dur CHUNK_SIZE;
     time start_time;
     time last_record_start;
     dur real_duration;
@@ -146,22 +153,30 @@ class InfiLiSa extends Recorder {
 
     JustLiSa @ _preallocated;
     fun void preallocator() {
+        0.4::ms => dur buffer;
         me.yield();
+        buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "1">>>;
         1::samp => now;
         me.yield();
+        buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "2">>>;
         if (_preallocated != null) {return ;}
         me.yield();
+        buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "3">>>;
+        buffer => now;
         new JustLiSa @=> _preallocated;
         me.yield();
+        buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "4">>>;
         _preallocated.set_buffer(1.1::CHUNK_SIZE);
         me.yield();
+        buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "5">>>;
         _preallocated.connect(left, right);
         me.yield();
+        buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATED">>>;
     }
     spork ~ preallocator();
