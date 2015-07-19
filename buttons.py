@@ -61,23 +61,85 @@ class Buttons(object):
         msg = u' '.join(map(unicode, msgs))
         print msg
 
+class ButtonAction(object):
+    def __init__(self, *args, **kwargs):
+        long_press_time = kwargs.pop('long_press_time', 1)
+        self.long_press_time = long_press_time
+        self.pin = None
+        self.init(*args, **kwargs)
+
+    def init(self):
+        pass
+
+    def __call__(self, pin, time):
+        self.pin = pin
+        return self.handle_press(time)
+
+    def handle_press(self, time):
+        print "handling press for", time
+        if time > self.long_press_time:
+            result = self.long_press()
+            if result is not NotImplemented:
+                return result
+            print "long_press tried but not implemented"
+        return self.press()
+
+    def has_long_press(self):
+        return self.long_press is not ButtonAction.long_press
+
+    def long_press(self):
+        print "default longpress"
+        return NotImplemented
+
+    def press(self):
+        print "default press"
+        return NotImplemented
+
+    def send(self, path, *args):
+        import liblo
+        liblo.send(
+                'osc.udp://localhost:3000'+path,
+                liblo.Message(path, *args))
+
+
+class RecordButton(ButtonAction):
+    def init(self, recorder):
+        self.recorder = recorder
+
+    def press(self):
+        self.send('/recording', self.recorder)
+        print "record pressed", self.recorder
+
+class PauseButton(ButtonAction):
+    def init(self, recorder):
+        self.recorder = recorder
+
+    def press(self):
+        self.send('/pause', self.recorder)
+        print "pause pressed", self.recorder
+
+    def long_press(self):
+        self.send('/delete', self.recorder)
+        print "delete pressed", self.recorder
+
 def special_button_press(button, time):
     print "*** Pressed", button, "for", time
 
 def button_press(button, time):
     print "Pressed", button, "for", time
 
+ALL = -1
 buttons = Buttons(button_press, debuglevel=2)
-buttons.add('1', 21, callback=special_button_press)
-buttons.add('1p', 22)
-buttons.add('2', 18)
-buttons.add('2p', 19)
-buttons.add('3', 12)
-buttons.add('3p', 13)
-buttons.add('4', 16)
-buttons.add('4p', 15)
-buttons.add('a', 7)
-buttons.add('ap', 11)
+buttons.add('1', 21, callback=RecordButton(1))
+buttons.add('1p', 22, callback=PauseButton(1))
+buttons.add('2', 18, callback=RecordButton(2))
+buttons.add('2p', 19, callback=PauseButton(2))
+buttons.add('3', 12, callback=RecordButton(3))
+buttons.add('3p', 13, callback=PauseButton(3))
+buttons.add('4', 16, callback=RecordButton(4))
+buttons.add('4p', 15, callback=PauseButton(4))
+buttons.add('all',  7, callback=RecordButton(ALL))
+buttons.add('allp', 11, callback=PauseButton(ALL))
 
 buttons.loop()
 

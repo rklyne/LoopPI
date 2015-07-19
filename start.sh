@@ -7,7 +7,7 @@ JACKD_PRIO=58
 CHUCK_PRIO=56
 CHUCK_CMD=~pi/chuck
 JACK_CMD=jackd
-CHUCK_PROGRAM=Looper/looper-pedal.ck
+CHUCK_PROGRAM=Looper/looper-pedal-unlimited.ck
 # CHUCK_PROGRAM=Experiments/playthrough.ck
 # CHUCK_PROGRAM=Experiments/sin.ck
 # RATE=44100
@@ -38,7 +38,7 @@ JACK_ALSA_OPTS="${JACK_ALSA_OPTS} -Phw:1 -Chw:0 "
 
 RUN_FAST="chrt --fifo ${JACKD_PRIO}"
 # export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
-JACK_CMD_LINE="$RUN_FAST ${JACK_CMD}  --realtime -t100000 ${JACK_OPTS} -d alsa -p${BUF_SIZE} -n${BUF_NUM} ${JACK_ALSA_OPTS} -s --rate ${RATE}"
+JACK_CMD_LINE="$RUN_FAST ${JACK_CMD}  --realtime -t10000 ${JACK_OPTS} -d alsa -p${BUF_SIZE} -n${BUF_NUM} ${JACK_ALSA_OPTS} -s --rate ${RATE}"
 echo $JACK_CMD_LINE
 $JACK_CMD_LINE &
 JACKD_PID=`pidof jackd`
