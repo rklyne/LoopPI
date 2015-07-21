@@ -3,3 +3,8 @@
 
 # node_modules
 node_modules/
+
+# vim
+*.swp
+*.swo
+
