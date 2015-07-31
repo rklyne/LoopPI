@@ -44,6 +44,7 @@ class Recorder extends CGen {
     fun void play_off() {}
     fun void set_duration(dur duration) {}
     fun void wipe() {}
+    fun void init() {}
 }
 
 class JustLiSa extends Recorder {
@@ -108,7 +109,11 @@ class JustLiSa extends Recorder {
     }
 
     fun void set_buffer(dur buffer) {
+        set_buffer(buffer, 0::ms);
+    }
+    fun void set_buffer(dur buffer, dur delay) {
         buffer => lisa.duration;
+        delay => now;
         0::ms => lisa.recRamp;
         15::second => lisa.duration;
         lisa.getVoice() => voice;
@@ -124,67 +129,66 @@ class InfiLiSa extends Recorder {
     JustLiSa @ current_recorder;
     Shred @ record_monitor;
     Shred @ play_monitor;
-    1::second => dur CHUNK_SIZE;
+    5::second => dur CHUNK_SIZE;
     time start_time;
     time last_record_start;
     dur real_duration;
     dur duration;
     0 => int recording; // bool
+    8::ms => dur buffer;
     
     fun void _change_recorder() {
         <<<"I", "CHANGE">>>;
         if (current_recorder != null) {
-            <<<"I", "CHANGE", "TRK", "1">>>;
             used_recorders.size() + 1 => used_recorders.size;
-            <<<"I", "CHANGE", "TRK", "2">>>;
             current_recorder @=> used_recorders[used_recorders.size()-1];
-            <<<"I", "CHANGE", "TRK", "3">>>;
             current_recorder.record_off();
-            <<<"I", "CHANGE", "TRK", "4">>>;
+            current_recorder.play_off();
+            current_recorder.real_duration => dur this_duration;
+            <<<"THIS:", this_duration>>>;
+            current_recorder.set_duration(current_recorder.real_duration);
         }
-        <<<"I", "CHANGE", "TRK", "5">>>;
         _new_recorder() @=> current_recorder;
-        <<<"I", "CHANGE", "TRK", "6">>>;
         now => last_record_start;
-        <<<"I", "CHANGE", "TRK", "7">>>;
         current_recorder.record_on();
-        <<<"I", "CHANGE", "TRK", "8">>>;
     }
 
     JustLiSa @ _preallocated;
+    0 => int _preallocating;
     fun void preallocator() {
-        0.4::ms => dur buffer;
-        me.yield();
-        buffer => now;
+        if (_preallocating) { return; }
+        1 => _preallocating;
+        2::buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "1">>>;
         1::samp => now;
-        me.yield();
         buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "2">>>;
         if (_preallocated != null) {return ;}
-        me.yield();
         buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "3">>>;
-        buffer => now;
+        20::buffer => now;
         new JustLiSa @=> _preallocated;
-        me.yield();
-        buffer => now;
+        30::buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "4">>>;
-        _preallocated.set_buffer(1.1::CHUNK_SIZE);
-        me.yield();
+        _preallocated.set_buffer(CHUNK_SIZE, buffer);
         buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATE", "5">>>;
-        _preallocated.connect(left, right);
-        me.yield();
+        // _preallocated.connect(left, right);
         buffer => now;
         <<<"I", "NEW_REC", "PREALLOC", "GENERATED">>>;
+        0 => _preallocating;
     }
-    spork ~ preallocator();
+
+    fun void init() {
+        spork ~ this.preallocator();
+        1::second => now;
+    }
 
     fun JustLiSa _new_recorder() {
         JustLiSa @ lisa;
-        if (_preallocated != null) {
+        if (false && _preallocated != null && ! _preallocating) {
             _preallocated @=> lisa;
+            _preallocated.connect(left, right);
             <<<"I", "NEW_REC", "PREALLOC", "RETURN">>>;
             null @=> _preallocated;
         } else {
@@ -231,7 +235,7 @@ class InfiLiSa extends Recorder {
                 min(remaining, used_recorders[i].real_duration) => wait_time;
                 wait_time => now;
                 remaining - wait_time => remaining;
-                // used_recorders[i].play_off();
+                used_recorders[i].play_off();
             }
             if (remaining > 0::second) {
                 <<<"I", "Multi Play", "Extra", "remaining", remaining>>>;
@@ -284,15 +288,17 @@ class InfiLiSa extends Recorder {
             used_recorders[i].disconnect();
         }
         0 => used_recorders.size;
+        Machine.remove(record_monitor.id());
         Machine.remove(play_monitor.id());
     }
 }
 
 class LoopTrack extends CGen {
     Recorder @ recorder;
-    new JustLiSa @=> recorder;
+    // new JustLiSa @=> recorder;
     new InfiLiSa @=> recorder;
     recorder.connect(left, right);
+    recorder.init();
     int recording;
     dur real_duration;
     dur duration;
@@ -337,6 +343,7 @@ class MultitrackLoop extends CGen {
     20 => int max_loops;
     LoopTrack @ loops[max_loops];
     0 => int recording;
+    0 => int paused;
     0 => int loop_count;
     0::ms => dur duration;
 
@@ -344,6 +351,16 @@ class MultitrackLoop extends CGen {
         if (recording) {
             loops[loop_count-1].record_off();
             0 => recording;
+        }
+    }
+
+    fun void pause_toggle() {
+        if (paused) {
+            1.0 => right.gain;
+            0 => paused;
+        } else {
+            0.0 => right.gain;
+            1 => paused;
         }
     }
 
@@ -423,6 +440,7 @@ public class LooperPedal extends CGen {
     }
 
     fun void pause(int loop) {
+        loops[loop].pause_toggle();
     }
 
     fun void delete_last(int loop) {
@@ -454,7 +472,9 @@ public class LooperPedal extends CGen {
 
 int char;
 LooperPedal looper;
-looper.connect(adc, dac);
+adc => Gain input;
+120.0 => input.gain;
+looper.connect(input, dac);
 0 => int selected_loop;
 // adc => Gain playthrough_volume => dac;
 // 01.0 => playthrough_volume.gain;
@@ -484,7 +504,7 @@ class ListenRecording extends OscListener {
     if (loop == -1) {
         return;
     } else {
-        looper.start_stop(loop);
+        looper.start_stop(loop - 1);
     }
   }
 }
@@ -495,7 +515,7 @@ class ListenDelete extends OscListener {
     if (loop == -1) {
         looper.clear();
     } else {
-        looper.delete_last(loop);
+        looper.delete_last(loop - 1);
     }
   }
 }
@@ -506,7 +526,7 @@ class ListenPause extends OscListener {
     if (loop == -1) {
         return;
     } else {
-        looper.pause(loop);
+        looper.pause(loop - 1);
     }
   }
 }
