@@ -354,13 +354,21 @@ class MultitrackLoop extends CGen {
         }
     }
 
+    fun void pause_on() {
+        0.0 => right.gain;
+        1 => paused;
+    }
+
+    fun void pause_off() {
+        1.0 => right.gain;
+        0 => paused;
+    }
+
     fun void pause_toggle() {
         if (paused) {
-            1.0 => right.gain;
-            0 => paused;
+            pause_off();
         } else {
-            0.0 => right.gain;
-            1 => paused;
+            pause_on();
         }
     }
 
@@ -413,6 +421,7 @@ class MultitrackLoop extends CGen {
             loops[i].disconnect();
         }
         0 => loop_count;
+        pause_off();
     }
 }
 
