@@ -8,7 +8,12 @@ CHUCK_PRIO=56
 CHUCK_CMD=~pi/chuck
 JACK_CMD=jackd
 CHUCK_PROGRAM=Looper/looper-pedal-unlimited.ck
-# CHUCK_PROGRAM=Experiments/playthrough.ck
+if [[ $1 == "playthrough" ]]; then
+    CHUCK_PROGRAM=Experiments/playthrough.ck;
+fi
+if [[ $1 == "sin" ]]; then
+    CHUCK_PROGRAM=Experiments/sin.ck;
+fi
 # CHUCK_PROGRAM=Experiments/sin.ck
 # RATE=44100
 RATE=48000
@@ -20,7 +25,9 @@ JACK_ALSA_OPTS="-s -S -z none -D "
 # Mono in:
 JACK_ALSA_OPTS="${JACK_ALSA_OPTS} -i1 -o2 "
 # named sound card
-JACK_ALSA_OPTS="${JACK_ALSA_OPTS} -Phw:1 -Chw:0 "
+IN_DEV=0
+OUT_DEV=1
+JACK_ALSA_OPTS="${JACK_ALSA_OPTS} -Phw:${OUT_DEV} -Chw:${IN_DEV} "
 
 # Overrides for debugging
 # BUF_SIZE=96
@@ -61,8 +68,13 @@ jack_bufsize $BUF_SIZE
 
 CHUCK_OPTS=" --in1 --srate:${RATE}  --bufnum:${BUF_NUM} "
 # CHUCK_OPTS="${CHUCK_OPTS} --adaptive:${BUF_SIZE}"
-$RUN_FAST ${CHUCK_CMD} ${CHUCK_OPTS} ${CHUCK_PROGRAM}
 
+# Run main process
+CHUCK_EXEC="${RUN_FAST} ${CHUCK_CMD} ${CHUCK_OPTS} ${CHUCK_PROGRAM}"
+echo "Chuck exec - ${CHUCK_EXEC}"
+$CHUCK_EXEC
+
+
+# Clean up when main process exits
 killall jackd
-
 
