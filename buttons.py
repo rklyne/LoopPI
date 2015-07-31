@@ -2,21 +2,23 @@ import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BOARD)
 
 class Buttons(object):
-    def __init__(self, callback, debuglevel=1):
+    def __init__(self, callback, button_down=None, debuglevel=1):
         self.pin_to_button = {}
         self.downtimes = {}
         self.callback = callback
+        self.button_down = button_down
         self.debuglevel = debuglevel
         import time
         self.now = time.time
         self.sleep = time.sleep
 
-    def add(self, button, pin, callback=None):
+    def add(self, button, pin, callback=None, button_down=None):
         self.pin_to_button[pin] = button
-        self.monitor_pin(pin, callback=callback)
+        self.monitor_pin(pin, callback=callback, button_down=button_down)
 
-    def monitor_pin(self, pin, callback=None, bouncetime=5):
+    def monitor_pin(self, pin, callback=None, button_down=None, bouncetime=5):
         callback = callback or self.callback
+        button_down = button_down or self.button_down or (lambda button: None)
         self.downtimes[pin] = None
         button = self.pin_to_button[pin]
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -27,6 +29,8 @@ class Buttons(object):
                     self.debug(5, "Ignoring down")
                     return
             self.downtimes[pin] = self.now()
+            if button_down:
+                button_down(button)
             self.debug(3, "Down", pin, "-", signal)
         def btn_up(signal, pin=pin, button=button):
             downtime = self.downtimes[pin]
@@ -71,7 +75,7 @@ class ButtonAction(object):
     def init(self):
         pass
 
-    def __call__(self, pin, time):
+    def __call__(self, pin, time=None):
         self.pin = pin
         return self.handle_press(time)
 
@@ -130,15 +134,15 @@ def button_press(button, time):
 
 ALL = -1
 buttons = Buttons(button_press, debuglevel=2)
-buttons.add('1', 21, callback=RecordButton(1))
+buttons.add('1', 21, button_down=RecordButton(1))
 buttons.add('1p', 22, callback=PauseButton(1))
-buttons.add('2', 18, callback=RecordButton(2))
+buttons.add('2', 18, button_down=RecordButton(2))
 buttons.add('2p', 19, callback=PauseButton(2))
-buttons.add('3', 12, callback=RecordButton(3))
+buttons.add('3', 12, button_down=RecordButton(3))
 buttons.add('3p', 13, callback=PauseButton(3))
-buttons.add('4', 16, callback=RecordButton(4))
+buttons.add('4', 16, button_down=RecordButton(4))
 buttons.add('4p', 15, callback=PauseButton(4))
-buttons.add('all',  7, callback=RecordButton(ALL))
+buttons.add('all',  7, button_down=RecordButton(ALL))
 buttons.add('allp', 11, callback=PauseButton(ALL))
 
 buttons.loop()
